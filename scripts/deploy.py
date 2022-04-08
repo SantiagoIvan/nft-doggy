@@ -13,6 +13,7 @@ def deploy():
             config["networks"][network.show_active()]["fee"],
             config["networks"][network.show_active()]["keyhash"],
             {"from": account},
+            publish_source=True,
         )
     )
     return contract

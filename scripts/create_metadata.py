@@ -1,5 +1,3 @@
-from distutils.command.upload import upload
-from lib2to3.pgen2 import token
 from scripts.deploy import deploy
 from scripts.utils import breed_map, get_account
 from metadata.sample_metadata import metadata_template
@@ -29,10 +27,12 @@ def main():
 def create_metadata(contract, account):
     count_of_collectible = contract.tokenCounter()
     print(f"You have created {count_of_collectible} collectibles!")
+
     for token_id in range(count_of_collectible):
         if contract.tokenURI(token_id).startswith("http"):
             continue  # ya tiene URI asignada
 
+        print("This token", token_id, " has no metadata")
         breed = breed_map[contract.tokenIdToBreed(token_id)]
         metadata_file_name = (
             f"./metadata/{network.show_active()}/{token_id}-{breed}.json"
@@ -55,6 +55,7 @@ def create_metadata(contract, account):
             filepath = f"./img/{breed.lower().replace('_', '-')}.png"
             image = upload_to_ipfs(filepath)
             nft_metadata["image"] = image
+
             # guardamos este objeto nft_metadata en un archivo .json y lo subimos tambien a ipfs
             # esta URI va a ser la que tenemos que guardar en la blockchain.
             with open(metadata_file_name, "w") as f:
@@ -65,7 +66,8 @@ def create_metadata(contract, account):
             # actualizo el map.json
             with open(f"./metadata/{network.show_active()}/map.json", "r+") as f:
                 data = json.load(f)
-                data["tokenToURI"][str(token_id)] = json_metadata_path
+                data[str(token_id)] = json_metadata_path
+                f.seek(0)
                 json.dump(data, f)
 
 

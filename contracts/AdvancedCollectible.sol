@@ -18,6 +18,8 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
     mapping(uint256 => Breed) public tokenIdToBreed;
     mapping(bytes32 => address) public requestIdToAddress;
     mapping(bytes32 => string) public requestIdToTokenURI;
+    mapping(uint256 => address) public tokenIdToOwner;
+    mapping(address => uint256) public ownerToTokenCount;
 
     enum Breed {
         PUG,
@@ -81,8 +83,10 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
         _safeMint(requestIdToAddress[requestId], newTokenId);
         // setear el tokenUri aca seria ideal. Necesitaria otro mapa, para mapear el tokenURI con el requestId, ya que el msg.sender es el VRF Coordinator.
         _setTokenURI(newTokenId, _uri);
-
+        address _owner = requestIdToAddress[requestId];
         tokenIdToBreed[newTokenId] = my_breed;
+        tokenIdToOwner[newTokenId] = _owner;
+        ownerToTokenCount[_owner] += 1;
         tokenCounter++;
 
         emit NFTCreated(newTokenId, my_breed);
@@ -94,5 +98,25 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
             "ERC721: transfer caller is not owner nor approved"
         );
         _setTokenURI(tokenId, _tokenURI);
+    }
+
+    function getNftsFromUser() public view returns (uint256[] memory) {
+        require(msg.sender != address(0), "Error: User null");
+        require(ownerToTokenCount[msg.sender] > 0, "Error: user without nfts");
+
+        uint256 _count = ownerToTokenCount[msg.sender];
+        uint256[] memory _tokenArray = new uint256[](_count);
+        uint256 _current = 0;
+
+        for (uint256 index = 0; index < tokenCounter; index++) {
+            if (tokenIdToOwner[index] == msg.sender) {
+                _tokenArray[_current] = index;
+                _current++;
+            }
+            if (_current >= ownerToTokenCount[msg.sender]) {
+                break;
+            }
+        }
+        return _tokenArray;
     }
 }
