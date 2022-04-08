@@ -100,20 +100,24 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
         _setTokenURI(tokenId, _tokenURI);
     }
 
-    function getNftsFromUser() public view returns (uint256[] memory) {
-        require(msg.sender != address(0), "Error: User null");
-        require(ownerToTokenCount[msg.sender] > 0, "Error: user without nfts");
+    function getNftsFromUser(address _owner)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        require(_owner != address(0), "Error: User null");
+        require(ownerToTokenCount[_owner] > 0, "Error: user without nfts");
 
-        uint256 _count = ownerToTokenCount[msg.sender];
+        uint256 _count = ownerToTokenCount[_owner];
         uint256[] memory _tokenArray = new uint256[](_count);
         uint256 _current = 0;
 
         for (uint256 index = 0; index < tokenCounter; index++) {
-            if (tokenIdToOwner[index] == msg.sender) {
+            if (tokenIdToOwner[index] == _owner) {
                 _tokenArray[_current] = index;
                 _current++;
             }
-            if (_current >= ownerToTokenCount[msg.sender]) {
+            if (_current >= ownerToTokenCount[_owner]) {
                 break;
             }
         }

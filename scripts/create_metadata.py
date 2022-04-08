@@ -63,13 +63,6 @@ def create_metadata(contract, account):
             json_metadata_path = upload_to_ipfs(metadata_file_name)
             contract.setTokenURI(token_id, json_metadata_path, {"from": account})
 
-            # actualizo el map.json
-            with open(f"./metadata/{network.show_active()}/map.json", "r+") as f:
-                data = json.load(f)
-                data[str(token_id)] = json_metadata_path
-                f.seek(0)
-                json.dump(data, f)
-
 
 # subimos el archivo a nuestro nodo de IPFS. Para eso necesito tener instalado IPFS
 # e iniciar el nodo local
