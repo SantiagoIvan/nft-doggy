@@ -8,14 +8,17 @@ def deploy():
         AdvancedCollectible[-1]
         if AdvancedCollectible
         else AdvancedCollectible.deploy(
-            config["networks"][network.show_active()]["vrf_coordinator"],
-            config["networks"][network.show_active()]["link_token"],
-            config["networks"][network.show_active()]["fee"],
+            config["networks"][network.show_active()]["vrf_coordinator_v2"],
             config["networks"][network.show_active()]["keyhash"],
+            config["networks"][network.show_active()]["subscription_id"],
+            config["networks"][network.show_active()]["callback_gas_limit"],
+            config["networks"][network.show_active()]["request_confirmations"],
+            config["networks"][network.show_active()]["randoms_per_request"],
             {"from": account},
-            publish_source=True,
+            publish_source=config["networks"][network.show_active()]["verify"],
         )
     )
+
     return contract
 
 

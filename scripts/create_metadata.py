@@ -1,3 +1,4 @@
+import logging
 from scripts.deploy import deploy
 from scripts.utils import breed_map, get_account
 from metadata.sample_metadata import metadata_template
@@ -5,6 +6,17 @@ from brownie import network
 from pathlib import Path
 import requests
 import json
+
+
+Log_Format = "%(levelname)s %(asctime)s - %(message)s"
+
+logging.basicConfig(
+    filename=f"./metadata/{network.show_active()}/NftToURI.log",
+    filemode="w",
+    format=Log_Format,
+    level=logging.INFO,
+)
+
 
 # voy a crear metadata para cada token creado.
 # Yo no voy a saber cual metadata asignarle hasta que se crea el nft, por el tema del random.
@@ -19,6 +31,7 @@ import json
 
 
 def main():
+    logger = logging.getLogger()
     contract = deploy()
     account = get_account()
     create_metadata(contract, account)
@@ -29,7 +42,7 @@ def create_metadata(contract, account):
     print(f"You have created {count_of_collectible} collectibles!")
 
     for token_id in range(count_of_collectible):
-        if contract.tokenURI(token_id).startswith("http"):
+        if contract.getTokenURI(token_id, account.address).startswith("http"):
             continue  # ya tiene URI asignada
 
         print("This token", token_id, " has no metadata")
@@ -44,7 +57,7 @@ def create_metadata(contract, account):
             )  # el archivo existe entonces se la asigno
             with open(f"./metadata/{network.show_active()}/map.json", "r") as f:
                 data = json.load(f)
-                uri = data["tokenToURI"][str(token_id)]
+                uri = data[str(token_id)]
                 contract.setTokenURI(token_id, uri, {"from": account})
 
         else:
@@ -61,7 +74,9 @@ def create_metadata(contract, account):
             with open(metadata_file_name, "w") as f:
                 json.dump(nft_metadata, f)
             json_metadata_path = upload_to_ipfs(metadata_file_name)
-            contract.setTokenURI(token_id, json_metadata_path, {"from": account})
+            tx = contract.setTokenURI(token_id, json_metadata_path, {"from": account})
+            tx.wait(1)
+            logging.info(f"Token ID: {token_id}, URI: {json_metadata_path}")
 
 
 # subimos el archivo a nuestro nodo de IPFS. Para eso necesito tener instalado IPFS

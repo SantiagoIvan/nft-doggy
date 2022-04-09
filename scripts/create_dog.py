@@ -3,12 +3,11 @@ from scripts.deploy import deploy
 
 
 def create(contract, account):
-    tx = contract.createCollectible("", {"from": account})
-    tx = contract.createCollectible("", {"from": account})
-    tx = contract.createCollectible("", {"from": account})
-    tx = contract.createCollectible("", {"from": account})
-    tx = contract.createCollectible("", {"from": account})
-    tx = contract.createCollectible("", {"from": account})
+    tx = contract.createCollectible({"from": account})
+    tx = contract.createCollectible({"from": account})
+    tx = contract.createCollectible({"from": account})
+    tx = contract.createCollectible({"from": account})
+    tx = contract.createCollectible({"from": account})
     tx.wait(15)
     print(
         "NFT Created! you can see it at ",

@@ -2,7 +2,7 @@ from brownie import accounts, network, LinkToken, VRFCoordinatorMock, config, Co
 
 LOCAL_BLOCKCHAIN_ENVIROMENTS = ["development", "ganache-local"]
 FORKED_LOCAL_ENVIROMENTS = ["mainnet-fork"]
-OPENSEA_URI = "https://opensea.io/assets/{}/{}"  # el primero es el contract address y el segundo, el tokenID
+OPENSEA_URI = "https://testnets.opensea.io/assets/{}/{}"  # el primero es el contract address y el segundo, el tokenID
 
 contract_to_mock = {
     "link_token": LinkToken,
@@ -24,7 +24,7 @@ def get_account(
         or network.show_active() in FORKED_LOCAL_ENVIROMENTS
     ):
         return accounts[0]
-    return accounts.load("santu-account")
+    return accounts.add(config["wallets"]["from_key"])
 
 
 def get_contract(contract_name):

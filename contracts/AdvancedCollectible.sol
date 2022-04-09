@@ -4,22 +4,28 @@ Cada nuevo token creado, tendra como tokenURI a alguna URI correspondiente a las
 Cada nft sera unico pero bueno la imagen en si va a ser la misma, podria hacer que cada uno sea unico 
 teniendo stats, agregando mas metadata, pero bueno al pedo, ahora solo voy a hacer perritos.
  */
-pragma solidity ^0.6.0;
+pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@chainlink/contracts/src/v0.6/VRFConsumerBase.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
-contract AdvancedCollectible is ERC721, VRFConsumerBase {
-    uint256 public fee;
-    bytes32 public keyhash;
+contract AdvancedCollectible is ERC721, VRFConsumerBaseV2 {
+    uint32 callbackGasLimit;
+    bytes32 keyhash;
+    uint64 subscriptionId;
+    uint16 requestConfirmations;
+    uint32 randomsPerRequest;
+    VRFCoordinatorV2Interface COORDINATOR;
 
+    uint256 public lastRandom;
     uint256 public tokenCounter;
 
     mapping(uint256 => Breed) public tokenIdToBreed;
-    mapping(bytes32 => address) public requestIdToAddress;
-    mapping(bytes32 => string) public requestIdToTokenURI;
+    mapping(uint256 => address) public requestIdToAddress;
     mapping(uint256 => address) public tokenIdToOwner;
     mapping(address => uint256) public ownerToTokenCount;
+    mapping(uint256 => string) private tokenToURI;
 
     enum Breed {
         PUG,
@@ -30,66 +36,61 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
 
     constructor(
         address _vrfCoordinator,
-        address _link,
-        uint256 _fee,
-        bytes32 _keyhash
-    ) public ERC721("Doggy", "DOG") VRFConsumerBase(_vrfCoordinator, _link) {
-        fee = _fee;
+        bytes32 _keyhash,
+        uint64 _subscriptionId,
+        uint32 _callbackGasLimit,
+        uint16 _requestConfirmations,
+        uint32 _randomsPerRequest
+    ) public ERC721("Doggy", "DOG") VRFConsumerBaseV2(_vrfCoordinator) {
+        COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
         keyhash = _keyhash;
+        subscriptionId = _subscriptionId;
+        callbackGasLimit = _callbackGasLimit;
+        requestConfirmations = _requestConfirmations;
+        randomsPerRequest = _randomsPerRequest;
         tokenCounter = 0;
     }
 
-    event RequestedRandomness(bytes32 indexed requestId, address requester);
+    event RandomRequested(uint256 indexed requestId, address requester);
     event NFTCreated(uint256 indexed tokenId, Breed breed);
 
-    function createCollectible(string memory _tokenURI)
-        public
-        returns (uint256)
-    {
-        require(
-            LINK.balanceOf(address(this)) >= fee,
-            "Not enough LINK - fill contract with faucet"
-        );
+    function createCollectible() public returns (uint256) {
         require(msg.sender != address(0));
-        bytes32 requestId = requestRandomness(keyhash, fee);
+        uint256 requestId = COORDINATOR.requestRandomWords(
+            keyhash,
+            subscriptionId,
+            requestConfirmations,
+            callbackGasLimit,
+            randomsPerRequest
+        );
 
         requestIdToAddress[requestId] = msg.sender;
-        requestIdToTokenURI[requestId] = _tokenURI;
-        emit RequestedRandomness(requestId, msg.sender);
+        emit RandomRequested(requestId, msg.sender);
+        return requestId;
     }
 
-    function fulfillRandomness(bytes32 requestId, uint256 randomness)
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords)
         internal
         override
     {
+        require(randomWords[0] > 0, "Error: no random");
         /**
         1 - Selecciono a una de las razas de perros
         2 - Mapeo tokenID->raza
         3 - Minteo el nft
-        4 - Seteo el tokenUri
-        5 - Luego de todo eso actualizo el token counter cuando todo salio correctamente
-        
-        Un temita que va a haber es que esa funcion que recibe el random, va a ser llamada por el VRF Coordinator
-        por lo tanto, a la hora de usar la funcion _safeMint, no puedo usar simplemente msg.sender
-        Tengo que guardarme la direccion del creador del nft en algun lado. Recordemos que este proceso
-        se inicia llamando a la funcion createCollectible.
-        Para asegurarme de relacionar a cada originalSender con su respectivo numero random
-        puedo crear un mapa requestIdToAddress
+        4 - Actualizo el token counter 
         */
-
-        Breed my_breed = Breed(randomness % 4);
-        uint256 newTokenId = tokenCounter;
-        string memory _uri = requestIdToTokenURI[requestId];
-        _safeMint(requestIdToAddress[requestId], newTokenId);
-        // setear el tokenUri aca seria ideal. Necesitaria otro mapa, para mapear el tokenURI con el requestId, ya que el msg.sender es el VRF Coordinator.
-        _setTokenURI(newTokenId, _uri);
+        lastRandom = randomWords[0];
+        Breed my_breed = Breed(lastRandom % 4);
         address _owner = requestIdToAddress[requestId];
-        tokenIdToBreed[newTokenId] = my_breed;
-        tokenIdToOwner[newTokenId] = _owner;
+
+        _safeMint(_owner, tokenCounter);
+        emit NFTCreated(tokenCounter, my_breed);
+
+        tokenIdToBreed[tokenCounter] = my_breed;
+        tokenIdToOwner[tokenCounter] = _owner;
         ownerToTokenCount[_owner] += 1;
         tokenCounter++;
-
-        emit NFTCreated(newTokenId, my_breed);
     }
 
     function setTokenURI(uint256 tokenId, string memory _tokenURI) public {
@@ -122,5 +123,22 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
             }
         }
         return _tokenArray;
+    }
+
+    function _setTokenURI(uint256 _tokenId, string memory _uri) internal {
+        require(
+            _tokenId >= 0 && _tokenId < tokenCounter,
+            "Error: null token id"
+        );
+        tokenToURI[_tokenId] = _uri;
+    }
+
+    function getTokenURI(uint256 _tokenId, address _sender)
+        public
+        view
+        returns (string memory)
+    {
+        require(tokenIdToOwner[_tokenId] == _sender, "Error: Not owner");
+        return tokenToURI[_tokenId];
     }
 }
